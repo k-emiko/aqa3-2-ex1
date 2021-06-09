@@ -46,3 +46,4 @@ out/
 !**/src/main/**
 !**/src/test/**
 /artifacts/*.jar
+/artifacts/data/
