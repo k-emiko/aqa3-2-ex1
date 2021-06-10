@@ -3,7 +3,6 @@ package ru.netology;
 import com.github.javafaker.Faker;
 import lombok.AllArgsConstructor;
 import lombok.Data;
-import lombok.NoArgsConstructor;
 import lombok.Value;
 
 import java.util.Locale;
@@ -15,20 +14,31 @@ public class UserGenerator {
         return faker.name().username();
     }
 
-    public static String generatePassword(String locale) {
+    public static String generatePassDb() {
+        return "$2a$10$LDGJoVOIJSDzMps1O4ft4OT56GNYAaPzDnndEqCUHRdnxHYubpvbC";
+    }
+
+    public static String generatePassUi() {
+        return "qwerty123";
+    }
+
+    public static String generateId(String locale) {
         Faker faker = new Faker(Locale.forLanguageTag(locale));
-        return faker.gameOfThrones().dragon();
+        return faker.idNumber().valid();
     }
 
     public static class Registration {
         public static User generateUser(String locale) {
-            return new User(generateLogin(locale), generatePassword(locale));
+            return new User(generateLogin(locale), generatePassUi(), generatePassDb(), generateId(locale));
         }
     }
+
     @Value
     @AllArgsConstructor
     public static class User {
-        private String login;
-        private String password;
+        String login;
+        String passwordUi;
+        String passwordDb;
+        String id;
     }
 }

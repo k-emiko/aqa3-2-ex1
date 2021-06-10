@@ -11,14 +11,8 @@ public class LoginPage {
 
     public AuthCodePage authorizeWithValidCredentials(UserGenerator.User user) {
         loginField.setValue(user.getLogin());
-        passwordField.setValue(user.getPassword());
+        passwordField.setValue(user.getPasswordUi());
         button.click();
         return new AuthCodePage();
-    }
-
-    public void authorizeWithInvalidPassword(UserGenerator.User user) {
-        loginField.setValue(user.getLogin());
-        passwordField.setValue("foo");
-        button.click();
     }
 }

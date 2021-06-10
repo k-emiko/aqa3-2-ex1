@@ -1,21 +1,37 @@
 package ru.netology;
 
+import com.codeborne.selenide.Condition;
 import com.codeborne.selenide.SelenideElement;
+import org.openqa.selenium.Keys;
 
 import static com.codeborne.selenide.Selenide.$;
 import static com.codeborne.selenide.Condition.visible;
 
 public class AuthCodePage {
-    SelenideElement authCodeField = $("[data-test-id='code'] .input__control");
+    private SelenideElement authCodeField = $("[data-test-id='code'] .input__control");
+    private SelenideElement notification = $(".notification");
+    private SelenideElement button = $(".button");
 
-//    public void inputValidAuthCode(UserGenerator.User user) { //todo think how to best design the getting of auth code
-//        authCodeField.setValue(user.getAuth_code());
-//    }
-    public void inputInvalidAuthCode(UserGenerator.User user) {
-        authCodeField.setValue("foo");
+    public void inputValidAuthCode(String code) {
+        authCodeField.setValue(code);
+        button.click();
+    }
+
+    public void inputInvalidAuthCode(String code) {
+        authCodeField.sendKeys(Keys.CONTROL + "A");
+        authCodeField.sendKeys(Keys.BACK_SPACE);
+        authCodeField.setValue(code);
+        button.click();
     }
 
     public AuthCodePage() {
         authCodeField.shouldBe(visible);
+    }
+
+    public void assertThreeInvalidCodeInputs() {
+        inputInvalidAuthCode("000000");
+        inputInvalidAuthCode("111111");
+        inputInvalidAuthCode("222222");
+        notification.shouldHave(Condition.text("попыток ввода"));
     }
 }
