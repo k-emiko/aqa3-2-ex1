@@ -6,11 +6,17 @@ import com.codeborne.selenide.SelenideElement;
 import lombok.val;
 import org.apache.commons.dbutils.QueryRunner;
 import org.apache.commons.dbutils.handlers.ScalarHandler;
+import org.junit.ClassRule;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.testcontainers.containers.DockerComposeContainer;
 import org.testcontainers.junit.jupiter.Testcontainers;
+import ru.netology.data.UserGenerator;
+import ru.netology.page.AuthCodePage;
+import ru.netology.page.LoginPage;
 
+import java.io.File;
 import java.sql.DriverManager;
 import java.sql.SQLException;
 
@@ -21,6 +27,12 @@ import static com.codeborne.selenide.Selenide.open;
 public class LoginTest {
     private SelenideElement heading = $("[data-test-id='dashboard'].heading");
     private UserGenerator.User user = UserGenerator.Registration.generateUser("en");
+
+    @ClassRule
+    public static DockerComposeContainer environment =
+            new DockerComposeContainer(new File("artifacts/docker-compose.yml"))
+                    .withExposedService("mysql_1", 3306)
+                    .withExposedService("app-deadline_1", 9999);
 
     @BeforeAll
     static void headless() {
@@ -35,12 +47,11 @@ public class LoginTest {
 
         try (
                 val conn = DriverManager.getConnection(
-                        "jdbc:mysql://localhost:3306/app", "app", "pass");
+                        "jdbc:mysql://localhost:3306/app", "app", "pass")
         ) {
             runner.update(conn, dataSQL, user.getLogin(), user.getPasswordDb(), user.getId());
         }
     }
-
 
     @Test
     public void loginHappyPathTest() throws SQLException {
@@ -54,7 +65,7 @@ public class LoginTest {
         try (
                 val conn = DriverManager.getConnection(
                         "jdbc:mysql://localhost:3306/app", "app", "pass"
-                );
+                )
 
         ) {
             String userId = runner.query(conn, idSQL, new ScalarHandler<>(), user.getLogin());
@@ -62,6 +73,27 @@ public class LoginTest {
         }
         authCodePage.inputValidAuthCode(authCode);
         heading.shouldHave(Condition.exactText("Личный кабинет"));
+    }
+
+    @Test
+    public void loginInvalidLoginTest() {
+        LoginPage loginPage = new LoginPage();
+        loginPage.authorizeWithInvalidLogin(user);
+        loginPage.assertInvalidLoginError();
+    }
+
+    @Test
+    public void loginInvalidLoginPassword() {
+        LoginPage loginPage = new LoginPage();
+        loginPage.authorizeWithInvalidPassword(user);
+        loginPage.assertInvalidLoginError();
+    }
+
+    @Test
+    public void loginInvalidCredentialsTest() {
+        LoginPage loginPage = new LoginPage();
+        loginPage.authorizeWithInvalidCredentials();
+        loginPage.assertInvalidLoginError();
     }
 
     @Test
