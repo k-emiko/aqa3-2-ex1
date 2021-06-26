@@ -11,6 +11,7 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.testcontainers.containers.DockerComposeContainer;
+import org.testcontainers.containers.wait.strategy.Wait;
 import org.testcontainers.junit.jupiter.Testcontainers;
 import ru.netology.data.UserGenerator;
 import ru.netology.page.AuthCodePage;
@@ -27,27 +28,32 @@ import static com.codeborne.selenide.Selenide.open;
 public class LoginTest {
     private SelenideElement heading = $("[data-test-id='dashboard'].heading");
     private UserGenerator.User user = UserGenerator.Registration.generateUser("en");
-
+    private static String mysqlUrl;
+    private static String appUrl;
     @ClassRule
-    public static DockerComposeContainer environment =
+    public static DockerComposeContainer mysqlCont =
             new DockerComposeContainer(new File("artifacts/docker-compose.yml"))
-                    .withExposedService("mysql_1", 3306)
-                    .withExposedService("app-deadline_1", 9999);
-
+                    .withExposedService("mysql", 3306, Wait.forListeningPort());
+    public static DockerComposeContainer appCont =
+            new DockerComposeContainer(new File("artifacts/docker-compose.yml"))
+                    .withExposedService("app-deadline", 9999, Wait.forListeningPort());
     @BeforeAll
     static void headless() {
+        mysqlCont.start();
+        mysqlUrl = mysqlCont.getServiceHost("mysql", 3306) + ":" + mysqlCont.getServicePort("mysql", 3306);
+        appCont.withEnv("DB_URL", "jdbc:mysql://" + mysqlUrl + "/app");
+        appCont.start();
+        appUrl = mysqlCont.getServiceHost("app-deadline", 9999) + ":" + mysqlCont.getServicePort("app-deadline", 9999);
         Configuration.headless = true;
     }
-
     @BeforeEach
     public void setUp() throws SQLException {
-        open("http://localhost:9999");
+        open("http://" + appUrl);
         val runner = new QueryRunner();
         val dataSQL = "INSERT INTO users(login, password, id) VALUES (?, ?, ?);";
-
         try (
                 val conn = DriverManager.getConnection(
-                        "jdbc:mysql://localhost:3306/app", "app", "pass")
+                        "jdbc:mysql://" + mysqlUrl + "/app", "app", "pass")
         ) {
             runner.update(conn, dataSQL, user.getLogin(), user.getPasswordDb(), user.getId());
         }
