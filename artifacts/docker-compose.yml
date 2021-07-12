@@ -17,5 +17,6 @@ services:
     ports:
       - '9999:9999'
     environment:
+      - DB_URL=jdbc:mysql://mysql:3306/app
       - DB_USER=app
       - DB_PASS=pass

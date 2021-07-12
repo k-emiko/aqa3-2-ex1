@@ -41,7 +41,7 @@ public class LoginTest {
                     .withPassword("pass")
                     .withNetwork(network)
                     .withNetworkAliases("mysql")
-                    .withFileSystemBind("./artifacts/deadline/init/schema.sql", "/docker-entrypoint-initdb.d/schema.sql", BindMode.READ_ONLY)
+                    .withFileSystemBind("./artifacts/init/schema.sql", "/docker-entrypoint-initdb.d/schema.sql", BindMode.READ_ONLY)
                     .withExposedPorts(3306);
     @Rule
     public static GenericContainer appCont =
