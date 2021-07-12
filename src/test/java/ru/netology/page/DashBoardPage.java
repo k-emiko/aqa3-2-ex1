@@ -10,6 +10,6 @@ public class DashBoardPage {
     private final SelenideElement heading = $("[data-test-id='dashboard'].heading");
 
     public DashBoardPage() {
-        heading.shouldHave(Condition.exactText("Личный кабинет"));
+        heading.shouldHave(Condition.exactText("Личный кабиет"));
     }
 }
