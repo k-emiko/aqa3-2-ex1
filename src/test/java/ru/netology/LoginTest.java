@@ -1,51 +1,69 @@
 package ru.netology;
 
-import com.codeborne.selenide.Condition;
 import com.codeborne.selenide.Configuration;
-import com.codeborne.selenide.SelenideElement;
 import lombok.val;
 import org.apache.commons.dbutils.QueryRunner;
 import org.apache.commons.dbutils.handlers.ScalarHandler;
-import org.junit.ClassRule;
+import org.junit.Rule;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.testcontainers.containers.DockerComposeContainer;
-import org.testcontainers.containers.wait.strategy.Wait;
+import org.testcontainers.containers.BindMode;
+import org.testcontainers.containers.GenericContainer;
+import org.testcontainers.containers.MySQLContainer;
+import org.testcontainers.containers.Network;
+import org.testcontainers.images.builder.ImageFromDockerfile;
 import org.testcontainers.junit.jupiter.Testcontainers;
 import ru.netology.data.UserGenerator;
 import ru.netology.page.AuthCodePage;
 import ru.netology.page.LoginPage;
 
-import java.io.File;
+import java.nio.file.Paths;
 import java.sql.DriverManager;
 import java.sql.SQLException;
 
-import static com.codeborne.selenide.Selenide.$;
 import static com.codeborne.selenide.Selenide.open;
 
 @Testcontainers
 public class LoginTest {
-    private SelenideElement heading = $("[data-test-id='dashboard'].heading");
-    private UserGenerator.User user = UserGenerator.Registration.generateUser("en");
-    private static String mysqlUrl;
+    private final UserGenerator.User user = UserGenerator.Registration.generateUser("en");
+
+    private static String dbUrl;
     private static String appUrl;
-    @ClassRule
-    public static DockerComposeContainer mysqlCont =
-            new DockerComposeContainer(new File("artifacts/docker-compose.yml"))
-                    .withExposedService("mysql", 3306, Wait.forListeningPort());
-    public static DockerComposeContainer appCont =
-            new DockerComposeContainer(new File("artifacts/docker-compose.yml"))
-                    .withExposedService("app-deadline", 9999, Wait.forListeningPort());
+    static Network network = Network.newNetwork();
+
+    @Rule
+    public static MySQLContainer dbCont =
+            (MySQLContainer) new MySQLContainer("mysql:latest")
+                    .withDatabaseName("app")
+                    .withUsername("app")
+                    .withPassword("pass")
+                    .withNetwork(network)
+                    .withNetworkAliases("mysql")
+                    .withFileSystemBind("./artifacts/deadline/init/schema.sql", "/docker-entrypoint-initdb.d/schema.sql", BindMode.READ_ONLY)
+                    .withExposedPorts(3306);
+    @Rule
+    public static GenericContainer appCont =
+            new GenericContainer(new ImageFromDockerfile("app-deadline")
+                    .withDockerfile(Paths.get("artifacts/deadline/Dockerfile")))
+                    .withEnv("TESTCONTAINERS_DB_USER", "app")
+                    .withEnv("TESTCONTAINERS_DB_PASS", "pass")
+                    .withExposedPorts(9999)
+                    .withNetwork(network)
+                    .withNetworkAliases("app-deadline");
+
     @BeforeAll
     static void headless() {
-        mysqlCont.start();
-        mysqlUrl = mysqlCont.getServiceHost("mysql", 3306) + ":" + mysqlCont.getServicePort("mysql", 3306);
-        appCont.withEnv("DB_URL", "jdbc:mysql://" + mysqlUrl + "/app");
-        appCont.start();
-        appUrl = mysqlCont.getServiceHost("app-deadline", 9999) + ":" + mysqlCont.getServicePort("app-deadline", 9999);
+        dbCont.start();
+        dbUrl = dbCont.getJdbcUrl();
+        appCont
+                .withCommand("java -jar app-deadline.jar -P:jdbc.url=jdbc:mysql://mysql:3306/app")
+                .start();
+        appUrl = appCont.getHost() + ":" + appCont.getMappedPort(9999);
         Configuration.headless = true;
     }
+
     @BeforeEach
     public void setUp() throws SQLException {
         open("http://" + appUrl);
@@ -53,9 +71,23 @@ public class LoginTest {
         val dataSQL = "INSERT INTO users(login, password, id) VALUES (?, ?, ?);";
         try (
                 val conn = DriverManager.getConnection(
-                        "jdbc:mysql://" + mysqlUrl + "/app", "app", "pass")
+                        dbUrl, "app", "pass")
         ) {
             runner.update(conn, dataSQL, user.getLogin(), user.getPasswordDb(), user.getId());
+        }
+    }
+
+    @AfterEach
+    public void cleanUp() throws SQLException {
+        val runner = new QueryRunner();
+        val dataSQL = "DElETE FROM users;";
+        try (
+                val conn = DriverManager.getConnection(
+                        dbUrl, "app", "pass")
+        ) {
+            runner.execute(conn, "SET FOREIGN_KEY_CHECKS = 0;");
+            runner.update(conn, dataSQL);
+            runner.execute(conn, "SET FOREIGN_KEY_CHECKS = 1;");
         }
     }
 
@@ -70,7 +102,7 @@ public class LoginTest {
 
         try (
                 val conn = DriverManager.getConnection(
-                        "jdbc:mysql://localhost:3306/app", "app", "pass"
+                        dbUrl, "app", "pass"
                 )
 
         ) {
@@ -78,7 +110,6 @@ public class LoginTest {
             authCode = runner.query(conn, dataSQL, new ScalarHandler<>(), userId);
         }
         authCodePage.inputValidAuthCode(authCode);
-        heading.shouldHave(Condition.exactText("Личный кабинет"));
     }
 
     @Test

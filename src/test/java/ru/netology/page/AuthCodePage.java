@@ -12,9 +12,10 @@ public class AuthCodePage {
     private SelenideElement notification = $(".notification");
     private SelenideElement button = $(".button");
 
-    public void inputValidAuthCode(String code) {
+    public DashBoardPage inputValidAuthCode(String code) {
         authCodeField.setValue(code);
         button.click();
+        return new DashBoardPage();
     }
 
     public void inputInvalidAuthCode(String code) {
