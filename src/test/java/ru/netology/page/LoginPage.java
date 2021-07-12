@@ -38,6 +38,6 @@ public class LoginPage {
     }
 
     public void assertInvalidLoginError() {
-        notification.shouldHave(Condition.text("Неверно указан логин или паоль"));
+        notification.shouldHave(Condition.text("Неверно указан логин или пароль"));
     }
 }
