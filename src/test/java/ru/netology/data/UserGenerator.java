@@ -33,6 +33,10 @@ public class UserGenerator {
         }
     }
 
+    public static String generateInvalidCredentials() {
+        return "foo";
+    }
+
     @Value
     @AllArgsConstructor
     public static class User {

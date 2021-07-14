@@ -1,9 +1,6 @@
 package ru.netology;
 
 import com.codeborne.selenide.Configuration;
-import lombok.val;
-import org.apache.commons.dbutils.QueryRunner;
-import org.apache.commons.dbutils.handlers.ScalarHandler;
 import org.junit.Rule;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
@@ -15,12 +12,12 @@ import org.testcontainers.containers.MySQLContainer;
 import org.testcontainers.containers.Network;
 import org.testcontainers.images.builder.ImageFromDockerfile;
 import org.testcontainers.junit.jupiter.Testcontainers;
+import ru.netology.data.CodeGenerator;
 import ru.netology.data.UserGenerator;
 import ru.netology.page.AuthCodePage;
 import ru.netology.page.LoginPage;
 
 import java.nio.file.Paths;
-import java.sql.DriverManager;
 import java.sql.SQLException;
 
 import static com.codeborne.selenide.Selenide.open;
@@ -29,9 +26,10 @@ import static com.codeborne.selenide.Selenide.open;
 public class LoginTest {
     private final UserGenerator.User user = UserGenerator.Registration.generateUser("en");
 
-    private static String dbUrl;
-    private static String appUrl;
+    private static String dbUrl;// = "jdbc:mysql://localhost:3306/app"; //in case this needs to be run on localhost with docker-compose
+    private static String appUrl;// = "localhost:9999"; //in case this needs to be run on localhost with docker-compose
     static Network network = Network.newNetwork();
+    static String invalidCredential = UserGenerator.generateInvalidCredentials();
 
     @Rule
     public static MySQLContainer dbCont =
@@ -53,7 +51,7 @@ public class LoginTest {
                     .withNetwork(network)
                     .withNetworkAliases("app-deadline");
 
-    @BeforeAll
+    @BeforeAll //disable this method if this needs to be run on localhost with docker-compose
     static void headless() {
         dbCont.start();
         dbUrl = dbCont.getJdbcUrl();
@@ -67,76 +65,52 @@ public class LoginTest {
     @BeforeEach
     public void setUp() throws SQLException {
         open("http://" + appUrl);
-        val runner = new QueryRunner();
-        val dataSQL = "INSERT INTO users(login, password, id) VALUES (?, ?, ?);";
-        try (
-                val conn = DriverManager.getConnection(
-                        dbUrl, "app", "pass")
-        ) {
-            runner.update(conn, dataSQL, user.getLogin(), user.getPasswordDb(), user.getId());
-        }
+        DBHelper.setUp(dbUrl, user);
     }
 
     @AfterEach
     public void cleanUp() throws SQLException {
-        val runner = new QueryRunner();
-        val dataSQL = "DElETE FROM users;";
-        try (
-                val conn = DriverManager.getConnection(
-                        dbUrl, "app", "pass")
-        ) {
-            runner.execute(conn, "SET FOREIGN_KEY_CHECKS = 0;");
-            runner.update(conn, dataSQL);
-            runner.execute(conn, "SET FOREIGN_KEY_CHECKS = 1;");
-        }
+        DBHelper.cleanUp(dbUrl);
     }
 
     @Test
     public void loginHappyPathTest() throws SQLException {
         LoginPage loginPage = new LoginPage();
-        AuthCodePage authCodePage = loginPage.authorizeWithValidCredentials(user);
-        String authCode;
-        val runner = new QueryRunner();
-        val idSQL = "SELECT id FROM users WHERE login=?;";
-        val dataSQL = "SELECT code FROM auth_codes WHERE user_id=? AND created=(select max(created) from auth_codes)";
-
-        try (
-                val conn = DriverManager.getConnection(
-                        dbUrl, "app", "pass"
-                )
-
-        ) {
-            String userId = runner.query(conn, idSQL, new ScalarHandler<>(), user.getLogin());
-            authCode = runner.query(conn, dataSQL, new ScalarHandler<>(), userId);
-        }
+        loginPage.login(user.getLogin(), user.getPasswordUi());
+        AuthCodePage authCodePage = new AuthCodePage();
+        String authCode = DBHelper.getCode(dbUrl, user);
         authCodePage.inputValidAuthCode(authCode);
     }
 
     @Test
     public void loginInvalidLoginTest() {
         LoginPage loginPage = new LoginPage();
-        loginPage.authorizeWithInvalidLogin(user);
+        loginPage.login(invalidCredential, user.getPasswordUi());
         loginPage.assertInvalidLoginError();
     }
 
     @Test
     public void loginInvalidLoginPassword() {
         LoginPage loginPage = new LoginPage();
-        loginPage.authorizeWithInvalidPassword(user);
+        loginPage.login(user.getLogin(), invalidCredential);
         loginPage.assertInvalidLoginError();
     }
 
     @Test
     public void loginInvalidCredentialsTest() {
         LoginPage loginPage = new LoginPage();
-        loginPage.authorizeWithInvalidCredentials();
+        loginPage.login(invalidCredential, invalidCredential);
         loginPage.assertInvalidLoginError();
     }
 
     @Test
     public void threeIncorrectPasswordInputs() {
         LoginPage loginPage = new LoginPage();
-        AuthCodePage authCodePage = loginPage.authorizeWithValidCredentials(user);
-        authCodePage.assertThreeInvalidCodeInputs();
+        loginPage.login(user.getLogin(), user.getPasswordUi());
+        AuthCodePage authCodePage = new AuthCodePage();
+        for (int i = 0; i < 4; i++) {
+            authCodePage.inputInvalidAuthCode(CodeGenerator.generateInvalidCode());
+        }
+        authCodePage.assertMultipleInvalidCodeInputs();
     }
 }

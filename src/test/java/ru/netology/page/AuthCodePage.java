@@ -4,8 +4,8 @@ import com.codeborne.selenide.Condition;
 import com.codeborne.selenide.SelenideElement;
 import org.openqa.selenium.Keys;
 
-import static com.codeborne.selenide.Selenide.$;
 import static com.codeborne.selenide.Condition.visible;
+import static com.codeborne.selenide.Selenide.$;
 
 public class AuthCodePage {
     private SelenideElement authCodeField = $("[data-test-id='code'] .input__control");
@@ -29,10 +29,7 @@ public class AuthCodePage {
         authCodeField.shouldBe(visible);
     }
 
-    public void assertThreeInvalidCodeInputs() {
-        inputInvalidAuthCode("000000");
-        inputInvalidAuthCode("111111");
-        inputInvalidAuthCode("222222");
+    public void assertMultipleInvalidCodeInputs() {
         notification.shouldHave(Condition.text("попыток ввода"));
     }
 }
