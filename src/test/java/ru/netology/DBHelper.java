@@ -44,7 +44,6 @@ public class DBHelper {
                 val conn = DriverManager.getConnection(
                         dbUrl, "app", "pass"
                 )
-
         ) {
             String userId = runner.query(conn, idSQL, new ScalarHandler<>(), user.getLogin());
             authCode = runner.query(conn, dataSQL, new ScalarHandler<>(), userId);

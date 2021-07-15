@@ -33,29 +33,30 @@ public class LoginTest {
 
     @Rule
     public static MySQLContainer dbCont =
-            (MySQLContainer) new MySQLContainer("mysql:latest")
-                    .withDatabaseName("app")
-                    .withUsername("app")
-                    .withPassword("pass")
-                    .withNetwork(network)
-                    .withNetworkAliases("mysql")
-                    .withFileSystemBind("./artifacts/init/schema.sql", "/docker-entrypoint-initdb.d/schema.sql", BindMode.READ_ONLY)
-                    .withExposedPorts(3306);
+            new MySQLContainer("mysql:latest");
     @Rule
     public static GenericContainer appCont =
             new GenericContainer(new ImageFromDockerfile("app-deadline")
-                    .withDockerfile(Paths.get("artifacts/deadline/Dockerfile")))
-                    .withEnv("TESTCONTAINERS_DB_USER", "app")
-                    .withEnv("TESTCONTAINERS_DB_PASS", "pass")
-                    .withExposedPorts(9999)
-                    .withNetwork(network)
-                    .withNetworkAliases("app-deadline");
+                    .withDockerfile(Paths.get("artifacts/deadline/Dockerfile")));
 
     @BeforeAll //disable this method if this needs to be run on localhost with docker-compose
-    static void headless() {
-        dbCont.start();
+    static void setUpContainersAndBrowser() {
+        dbCont
+                .withDatabaseName("app")
+                .withUsername("app")
+                .withPassword("pass")
+                .withNetwork(network)
+                .withNetworkAliases("mysql")
+                .withFileSystemBind("./artifacts/init/schema.sql", "/docker-entrypoint-initdb.d/schema.sql", BindMode.READ_ONLY)
+                .withExposedPorts(3306)
+                .start();
         dbUrl = dbCont.getJdbcUrl();
         appCont
+                .withEnv("TESTCONTAINERS_DB_USER", "app")
+                .withEnv("TESTCONTAINERS_DB_PASS", "pass")
+                .withExposedPorts(9999)
+                .withNetwork(network)
+                .withNetworkAliases("app-deadline")
                 .withCommand("java -jar app-deadline.jar -P:jdbc.url=jdbc:mysql://mysql:3306/app")
                 .start();
         appUrl = appCont.getHost() + ":" + appCont.getMappedPort(9999);
@@ -104,7 +105,7 @@ public class LoginTest {
     }
 
     @Test
-    public void threeIncorrectPasswordInputs() {
+    public void blockAfterThreeIncorrectInputs() {
         LoginPage loginPage = new LoginPage();
         loginPage.login(user.getLogin(), user.getPasswordUi());
         AuthCodePage authCodePage = new AuthCodePage();
@@ -113,4 +114,5 @@ public class LoginTest {
         }
         authCodePage.assertMultipleInvalidCodeInputs();
     }
+
 }
