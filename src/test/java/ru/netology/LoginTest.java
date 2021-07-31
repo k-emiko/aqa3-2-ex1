@@ -1,4 +1,4 @@
-package ru.netology.test;
+package ru.netology;
 
 import com.codeborne.selenide.Configuration;
 import org.junit.Rule;
