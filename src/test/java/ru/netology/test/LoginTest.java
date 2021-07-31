@@ -1,4 +1,4 @@
-package ru.netology;
+package ru.netology.test;
 
 import com.codeborne.selenide.Configuration;
 import org.junit.Rule;
@@ -8,13 +8,13 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.testcontainers.containers.DockerComposeContainer;
 import org.testcontainers.junit.jupiter.Testcontainers;
+import ru.netology.database.DBHelper;
 import ru.netology.data.CodeGenerator;
 import ru.netology.data.UserGenerator;
 import ru.netology.page.AuthCodePage;
 import ru.netology.page.LoginPage;
 
 import java.io.File;
-import java.sql.SQLException;
 
 import static com.codeborne.selenide.Selenide.open;
 
@@ -40,18 +40,18 @@ public class LoginTest {
     }
 
     @BeforeEach
-    public void setUp() throws SQLException {
+    public void setUp() {
         open("http://" + appUrl);
         DBHelper.setUp(dbUrl, user);
     }
 
     @AfterEach
-    public void cleanUp() throws SQLException {
+    public void cleanUp() {
         DBHelper.cleanUp(dbUrl);
     }
 
     @Test
-    public void loginHappyPathTest() throws SQLException {
+    public void loginHappyPathTest() {
         LoginPage loginPage = new LoginPage();
         loginPage.login(user.getLogin(), user.getPasswordUi());
         AuthCodePage authCodePage = new AuthCodePage();
